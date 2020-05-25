@@ -65,7 +65,7 @@ extension UsersListViewController: UITableViewDataSource, UITableViewDelegate {
   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     guard let cell = tableView.dequeueReusableCell(withIdentifier: "userCell", for: indexPath) as? UserTableViewCell
       else {return UITableViewCell()}
-    let user = DataProviders.shared.usersDataProvider.user(with: userList[indexPath.row].id)
+    let user = userList[indexPath.row]
     cell.user = user
     cell.configureCell()
     return cell
@@ -76,8 +76,8 @@ extension UsersListViewController: UITableViewDataSource, UITableViewDelegate {
   }
   
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-    if let user = DataProviders.shared.usersDataProvider.user(with: userList[indexPath.row].id) {
+     let user = userList[indexPath.row]
       self.navigationController?.pushViewController(ProfileViewController(user: user), animated: true)
-    }
+    
   }
 }

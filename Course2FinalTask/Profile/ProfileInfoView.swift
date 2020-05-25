@@ -12,11 +12,15 @@ import DataProvider
 protocol ProfileInfoViewDelegate: AnyObject {
   func followersTapped(userList: [User], title: String)
   func followingTapped(userList: [User], title: String)
+  func showAlert()
+  func showIndicator()
+  func hideIndicator()
 }
 
 final class ProfileInfoView: UIView {
   weak var delegate: ProfileInfoViewDelegate?  
   var user: User?
+//MARK: - Private properties
   
   private var userAvatarImageView: UIImageView = {
     let imageView = UIImageView()
@@ -50,6 +54,18 @@ final class ProfileInfoView: UIView {
     return label
   }()
   
+  private var followButton: UIButton = {
+    let button = UIButton()
+    button.backgroundColor = UIColor(named: "ButtonBlue")
+    button.titleLabel?.textColor = .white
+    button.titleLabel?.font = .systemFont(ofSize: 15)
+    button.titleEdgeInsets.left = 6
+    button.titleEdgeInsets.right = 6
+    button.layer.cornerRadius = 4
+    button.addTarget(self, action: #selector(followButtonTapped), for: .touchUpInside)
+    return button
+  }()
+  
   private lazy var followersTapRecognizer: UITapGestureRecognizer = {
     let gesture = UITapGestureRecognizer(target: self, action: #selector(followersLabelTapped(_:)))
     return gesture
@@ -59,6 +75,7 @@ final class ProfileInfoView: UIView {
     let gesture = UITapGestureRecognizer(target: self, action: #selector(followinLabelTapped(_:)))
     return gesture
   }()
+//MARK: - Inits
   
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -69,6 +86,7 @@ final class ProfileInfoView: UIView {
     fatalError("init(coder:) has not been implemented")
   }
 }
+//MARK: - Fill in the View methods
 
 extension ProfileInfoView {
   func setupLayout() {
@@ -76,6 +94,7 @@ extension ProfileInfoView {
     addSubview(userNameLabel)
     addSubview(followersLabel)
     addSubview(followingLabel)
+    addSubview(followButton)
     
     userAvatarImageView.snp.makeConstraints{
       $0.height.width.equalTo(70)
@@ -98,6 +117,12 @@ extension ProfileInfoView {
       $0.bottom.equalToSuperview().inset(8)
       $0.trailing.equalToSuperview().inset(8)
     }
+    
+    followButton.snp.makeConstraints{
+      $0.top.equalToSuperview().inset(8)
+      $0.trailing.equalTo(followingLabel)
+      $0.width.greaterThanOrEqualTo(60).priority(750)
+    }
   }
   
   func fillProfileInfo() {
@@ -107,24 +132,91 @@ extension ProfileInfoView {
       followersLabel.text = "Followers: \(user.followedByCount)"
       followersLabel.sizeToFit()
       followingLabel.text = "Following: \(user.followsCount)"
+      
+      if user.currentUserFollowsThisUser == true {
+        followButton.setTitle("Unfollow", for: .normal)
+        followButton.sizeToFit()
+      } else {
+        followButton.setTitle("Follow", for: .normal)
+        followButton.sizeToFit()
+      }
     }
   }
 }
+//MARK: - Gesture Handlers
 
 extension ProfileInfoView {
   @objc func followersLabelTapped (_ recognizer: UITapGestureRecognizer) {
+    let globalQueue = DispatchQueue.global(qos: .userInitiated)
+    delegate?.showIndicator()
     if let userID = user?.id {
-      if let userList = DataProviders.shared.usersDataProvider.usersFollowingUser(with: userID) {
-        delegate?.followersTapped(userList: userList, title: "Followers")
+      
+      DataProviders.shared.usersDataProvider.usersFollowingUser(with: userID, queue: globalQueue) { [weak self] usersArray in
+        
+        if let usersArray = usersArray {
+          DispatchQueue.main.async {
+            self?.delegate?.hideIndicator()
+            self?.delegate?.followersTapped(userList: usersArray, title: "Followers")
+          }
+        }
       }
     }
   }
   
   @objc func followinLabelTapped (_ recognizer: UITapGestureRecognizer) {
+    delegate?.showIndicator()
     if let userID = user?.id {
-      if let userList = DataProviders.shared.usersDataProvider.usersFollowedByUser(with: userID) {
-        delegate?.followingTapped(userList: userList, title: "Following")
+      
+      DataProviders.shared.usersDataProvider.usersFollowedByUser(with: userID, queue: DispatchQueue.global(qos: .userInitiated)) { [weak self] usersArray in
+        
+        if let usersArray = usersArray {
+          DispatchQueue.main.async {
+            self?.delegate?.hideIndicator()
+            self?.delegate?.followingTapped(userList: usersArray, title: "Following")
+          }
+        }
       }
     }
+  }
+  
+  @objc func followButtonTapped () {
+    if let user = user {
+      if user.currentUserFollowsThisUser {
+        print(user.currentUserFollowsThisUser)
+        print("current user follows, to unfollow")
+        DataProviders.shared.usersDataProvider.unfollow(user.id, queue: DispatchQueue.global(qos: .userInteractive)) {
+          [weak self] user in
+          if let user = user {
+            DispatchQueue.main.async {
+              self?.followersLabel.text = "Followers: \(user.followedByCount)"
+              self?.followButton.setTitle("Follow", for: .normal)
+              print(user.currentUserFollowsThisUser)
+            }
+          } else {
+            DispatchQueue.main.async {
+              self?.delegate?.showAlert()
+            }
+          }
+        }
+      } else {
+        print(user.currentUserFollowsThisUser)
+        print("current user unfollows, to follow")
+        DataProviders.shared.usersDataProvider.follow(user.id, queue: DispatchQueue.global(qos: .userInteractive)) {
+          [weak self] user in
+          if let user = user {
+            DispatchQueue.main.async {
+              self?.followersLabel.text = "Followers: \(user.followedByCount)"
+              self?.followButton.setTitle("Unfollow", for: .normal)
+              print(user.currentUserFollowsThisUser)
+            }
+          } else {
+            DispatchQueue.main.async {
+              self?.delegate?.showAlert()
+            }
+          }
+        }
+      }
+    }
+    print(user?.currentUserFollowsThisUser)
   }
 }

@@ -12,7 +12,8 @@ import DataProvider
 final class ProfileViewController: UIViewController {
   private var reuseIdentifier = "imageCell"
   private var userPosts: [Post]?
-  private var user: User
+
+  var user: User?
   
   private lazy var profileScrollView: UIScrollView = {
     let scrollView = UIScrollView()
@@ -39,7 +40,20 @@ final class ProfileViewController: UIViewController {
     return profileInfo
   }()
   
-  init (user: User) {
+  private var indicator: UIActivityIndicatorView = {
+    let indicator = UIActivityIndicatorView()
+    indicator.style = .white
+    return indicator
+  }()
+  
+  private var dimmedView: UIView = {
+    let view = UIView()
+    view.backgroundColor = .black
+    view.alpha = 0.7
+    return view
+  }()
+  
+  init (user: User?) {
     self.user = user
     super.init(nibName: nil, bundle: nil)
   }
@@ -63,8 +77,31 @@ extension ProfileViewController {
     profileScrollView.addSubview(profileInfoView)
     profileScrollView.addSubview(userImagesCollectionView)
     
-    self.navigationItem.title = user.username
-    userPosts = DataProviders.shared.postsDataProvider.findPosts(by: user.id)
+    self.navigationItem.title = user?.username
+    showIndicator()
+    if let user = user {
+      DataProviders.shared.postsDataProvider.findPosts(by: user.id, queue: DispatchQueue.global(qos: .userInteractive)) {
+        [weak self] postArray in
+        if let postArray = postArray {
+          self?.userPosts = postArray
+          
+          DispatchQueue.main.async {
+            self?.userImagesCollectionView.reloadData()
+            self?.hideIndicator()
+          }
+        } else {
+          let alert = UIAlertController(title: "Unknown error", message: "Please, try again later", preferredStyle: .alert)
+          alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: {
+            [weak self] action in
+            
+            self?.navigationController?.popViewController(animated: true)
+            
+          }))
+          self?.present(alert, animated: true, completion: nil)
+        }
+      }
+    }
+    
     profileInfoView.user = user
     profileInfoView.fillProfileInfo()
     
@@ -104,18 +141,51 @@ extension ProfileViewController: UICollectionViewDataSource, UICollectionViewDel
   
   func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
     return CGSize(width: view.frame.width/3, height: view.frame.width/3)
-  }
-  
+  }  
 }
-
 // MARK: - ProfileInfoViewDelegate
 
 extension ProfileViewController: ProfileInfoViewDelegate {
   func followersTapped(userList: [User], title: String) {
+    
     self.navigationController?.pushViewController(UsersListViewController(userList: userList, title: title), animated: true)
+    
   }
   
   func followingTapped(userList: [User], title: String) {
     self.navigationController?.pushViewController(UsersListViewController(userList: userList, title: title), animated: true)
+  }
+}
+//MARK: - Activity indicator methods
+
+extension ProfileViewController {
+  func showIndicator() {
+    view.addSubview(dimmedView)
+    dimmedView.snp.makeConstraints{
+      $0.edges.equalToSuperview()
+    }
+    
+    dimmedView.addSubview(indicator)
+    indicator.startAnimating()
+    indicator.snp.makeConstraints{
+      $0.center.equalToSuperview()
+    }
+  }
+  
+  func hideIndicator() {
+    indicator.stopAnimating()
+    indicator.hidesWhenStopped = true
+    indicator.removeFromSuperview()
+    dimmedView.removeFromSuperview()
+  }
+  
+  func showAlert() {
+    let alert = UIAlertController(title: "Unknown Error", message: "Please, try again later", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: {
+      [weak self] action in
+      alert.dismiss(animated: true, completion: nil)
+      self?.navigationController?.popViewController(animated: true)
+    }))
+    self.present(alert, animated: true, completion: nil)
   }
 }

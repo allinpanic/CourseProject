@@ -21,7 +21,6 @@ final class NewPostViewController: UIViewController {
     collectionView.backgroundColor = .white
     collectionView.register(NewImageThumbnailCell.self, forCellWithReuseIdentifier: reusableCellID)
     collectionView.isScrollEnabled = true
-    
     return collectionView
   }()
   
@@ -47,6 +46,7 @@ extension NewPostViewController {
     }
   }
 }
+//MARK: - CollectionView DataSource Delegate
 
 extension NewPostViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
   func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
@@ -66,8 +66,6 @@ extension NewPostViewController: UICollectionViewDataSource, UICollectionViewDel
   func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
     if let image = minImages?[indexPath.row] {
       self.navigationController?.pushViewController(FilterImageViewController(image: image, index: indexPath.row), animated: true)
+    }
   }
-  }
-  
-  
 }

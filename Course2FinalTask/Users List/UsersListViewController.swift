@@ -77,7 +77,6 @@ extension UsersListViewController: UITableViewDataSource, UITableViewDelegate {
   
   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
      let user = userList[indexPath.row]
-      self.navigationController?.pushViewController(ProfileViewController(user: user), animated: true)
-    
+      self.navigationController?.pushViewController(ProfileViewController(user: user), animated: true)    
   }
 }

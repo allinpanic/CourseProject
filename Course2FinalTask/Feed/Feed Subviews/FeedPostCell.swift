@@ -14,13 +14,15 @@ protocol FeedPostCellDelegate: AnyObject {
   func postHeaderViewTapped(user: User)
   func postImageDoubleTapped(imageView: UIImageView)
   func likesLabelTapped(users: [User], title: String)
-  func showAlert(_ alert: UIAlertController)
+  func showAlert()
 }
 
 final class FeedPostCell: UITableViewCell {
   
   var post: Post?
   weak var delegate: FeedPostCellDelegate?
+  
+// MARK: - Private properties
   
   private lazy var postHeader: PostHeader = {
     let header = PostHeader()
@@ -63,6 +65,7 @@ final class FeedPostCell: UITableViewCell {
     let tapGesture = UITapGestureRecognizer(target: self, action: #selector(likesCountTapped(_:)))
     return tapGesture
   }()
+// MARK: - Inits
   
   override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
     super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -74,7 +77,7 @@ final class FeedPostCell: UITableViewCell {
   }
 }
 
-// MARK: - Fill in cell
+// MARK: - Fill In Cell
 
 extension FeedPostCell {
   func setupLayout() {
@@ -133,34 +136,26 @@ extension FeedPostCell {
 // MARK: - Gesture Handlers
 
 extension FeedPostCell {
+  
   @objc func postHeaderTapped(_ recognizer: UITapGestureRecognizer) {
     
     if let userID = post?.author {
       DataProviders.shared.usersDataProvider.user(with: userID,
-                                                  queue: DispatchQueue.main,
-                                                  handler: { [weak self] user1 in
-                                                    if let user1 = user1 {
-                                                      
-                                                      self?.delegate?.postHeaderViewTapped(user: user1)
-                                                    } else {
-                                                      let alert = UIAlertController(title: "Unknokn error!",
-                                                                                    message: "Please, try again later",
-                                                                                    preferredStyle: .alert)
-                                                      let alertAction = UIAlertAction(title: "OK",
-                                                                                      style: .default,
-                                                                                      handler: { action in
-                                                                                        alert.dismiss(animated: true, completion: nil)
-                                                      })
-                                                      alert.addAction(alertAction)
-                                                      self?.delegate?.showAlert(alert)
-                                                    }
+                                                  queue: DispatchQueue.global(qos: .userInteractive),
+                                                  handler:
+        { [weak self] user1 in
+          if let user1 = user1 {
+            DispatchQueue.main.async {
+              self?.delegate?.postHeaderViewTapped(user: user1)
+            }
+          } else {
+            DispatchQueue.main.async {
+              self?.delegate?.showAlert()
+            }
+          }
       })
-      
     }
-  }  
-  
-  
-  
+  }
   
   @objc func postImageTapped (_ gestureRecognizer: UITapGestureRecognizer) {
     delegate?.postImageDoubleTapped(imageView: bigLikeImageView)
@@ -170,13 +165,17 @@ extension FeedPostCell {
   }
   
   @objc func likesCountTapped (_ gestureRecognizer: UITapGestureRecognizer) {
-    if let postID = post?.id {
-      
-      DataProviders.shared.postsDataProvider.usersLikedPost(with: postID, queue: DispatchQueue.global(qos: .userInteractive) ) { [weak self] usersList in
+    if let postID = post?.id {      
+      DataProviders.shared.postsDataProvider.usersLikedPost(with: postID,
+                                                            queue: DispatchQueue.global(qos: .userInteractive) )
+      { [weak self] usersList in
         if let usersList = usersList {
-          
           DispatchQueue.main.async {
             self?.delegate?.likesLabelTapped(users: usersList, title: "Likes")
+          }
+        } else {
+          DispatchQueue.main.async {
+            self?.delegate?.showAlert()
           }
         }
       }
@@ -186,36 +185,42 @@ extension FeedPostCell {
   @objc func likeButtonPressed () {
     if let postID = post?.id {
       if post?.currentUserLikesThisPost == true {
-        print("to unlike")
-        DataProviders.shared.postsDataProvider.unlikePost(with: postID, queue: DispatchQueue.main) {
-          [weak self] post in
-          if let post = post {
-            print("unlike done \(post.currentUserLikesThisPost)")
-            
-            self?.postFooter.likeButton.tintColor = .lightGray
-            self?.postFooter.likesLabel.text = "Likes: \(post.likedByCount)"
-            
-          }
-        }
-        print(post?.currentUserLikesThisPost)
+        DataProviders.shared.postsDataProvider.unlikePost(with: postID,
+                                                          queue: DispatchQueue.global(qos: .userInteractive),
+                                                          handler:
+          { [weak self] post in
+            if let post = post {
+              self?.post = post
+              
+              DispatchQueue.main.async {
+                self?.postFooter.likeButton.tintColor = .lightGray
+                self?.postFooter.likesLabel.text = "Likes: \(post.likedByCount)"
+              }
+            } else {
+              DispatchQueue.main.async {
+                self?.delegate?.showAlert()
+              }
+            }
+        })
       } else {
-        print("to like")
-        DataProviders.shared.postsDataProvider.likePost(with: postID, queue: DispatchQueue.main) {
-          [weak self] post in
-          if let post = post {
-            print("like done \(post.currentUserLikesThisPost)")
-            
-            self?.postFooter.likeButton.tintColor = .systemBlue
-            self?.postFooter.likesLabel.text = "Likes: \(post.likedByCount)"
-            
-          }          
-        }
-        print(post?.currentUserLikesThisPost)
+        DataProviders.shared.postsDataProvider.likePost(with: postID,
+                                                        queue: DispatchQueue.global(qos: .userInteractive),
+                                                        handler:
+          { [weak self] post in
+            if let post = post {
+              self?.post = post
+              
+              DispatchQueue.main.async {
+                self?.postFooter.likeButton.tintColor = .systemBlue
+                self?.postFooter.likesLabel.text = "Likes: \(post.likedByCount)"
+              }
+            } else {
+              DispatchQueue.main.async {
+                self?.delegate?.showAlert()
+              }
+            }
+        })
       }
-      
     }
-    
-  }
-  
-  
+  }    
 }

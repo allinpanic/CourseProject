@@ -10,10 +10,12 @@ import UIKit
 import DataProvider
 
 final class ProfileViewController: UIViewController {
-  private var reuseIdentifier = "imageCell"
-  private var userPosts: [Post]?
 
   var user: User?
+// MARK: - Private properties
+  
+  private var reuseIdentifier = "imageCell"
+  private var userPosts: [Post]?
   
   private lazy var profileScrollView: UIScrollView = {
     let scrollView = UIScrollView()
@@ -52,6 +54,7 @@ final class ProfileViewController: UIViewController {
     view.alpha = 0.7
     return view
   }()
+// MARK: - Inits
   
   init (user: User?) {
     self.user = user
@@ -61,6 +64,7 @@ final class ProfileViewController: UIViewController {
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
+//MARK: - ViewDidLoad
   
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -70,6 +74,7 @@ final class ProfileViewController: UIViewController {
     setupLayout()
   }
 }
+//MARK: - Layout
 
 extension ProfileViewController {
   private func setupLayout() {
@@ -78,26 +83,24 @@ extension ProfileViewController {
     profileScrollView.addSubview(userImagesCollectionView)
     
     self.navigationItem.title = user?.username
+    
     showIndicator()
+    
     if let user = user {
-      DataProviders.shared.postsDataProvider.findPosts(by: user.id, queue: DispatchQueue.global(qos: .userInteractive)) {
-        [weak self] postArray in
+      DataProviders.shared.postsDataProvider.findPosts(by: user.id,
+                                                       queue: DispatchQueue.global(qos: .userInteractive))
+      { [weak self] postArray in
         if let postArray = postArray {
-          self?.userPosts = postArray
+          self?.userPosts = postArray.reversed()
           
           DispatchQueue.main.async {
             self?.userImagesCollectionView.reloadData()
             self?.hideIndicator()
           }
         } else {
-          let alert = UIAlertController(title: "Unknown error", message: "Please, try again later", preferredStyle: .alert)
-          alert.addAction(UIAlertAction(title: "OK", style: .cancel, handler: {
-            [weak self] action in
-            
-            self?.navigationController?.popViewController(animated: true)
-            
-          }))
-          self?.present(alert, animated: true, completion: nil)
+          DispatchQueue.main.async {
+          self?.showAlert()
+          }
         }
       }
     }
@@ -119,7 +122,7 @@ extension ProfileViewController {
       $0.top.equalTo(profileInfoView.snp.bottom)
       $0.leading.trailing.equalToSuperview()
       $0.bottom.equalToSuperview()
-      $0.height.equalTo(view.bounds.height)
+      $0.height.equalTo(view.bounds.height + 100)
     }
   }
 }
@@ -146,14 +149,23 @@ extension ProfileViewController: UICollectionViewDataSource, UICollectionViewDel
 // MARK: - ProfileInfoViewDelegate
 
 extension ProfileViewController: ProfileInfoViewDelegate {
+  
   func followersTapped(userList: [User], title: String) {
-    
     self.navigationController?.pushViewController(UsersListViewController(userList: userList, title: title), animated: true)
-    
   }
   
   func followingTapped(userList: [User], title: String) {
     self.navigationController?.pushViewController(UsersListViewController(userList: userList, title: title), animated: true)
+  }
+  
+  func showAlert() {
+    let alert = UIAlertController(title: "Unknown Error", message: "Please, try again later", preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: {
+      [weak self] action in
+      alert.dismiss(animated: true, completion: nil)
+      self?.navigationController?.popViewController(animated: true)
+    }))
+    self.present(alert, animated: true, completion: nil)
   }
 }
 //MARK: - Activity indicator methods
@@ -177,15 +189,5 @@ extension ProfileViewController {
     indicator.hidesWhenStopped = true
     indicator.removeFromSuperview()
     dimmedView.removeFromSuperview()
-  }
-  
-  func showAlert() {
-    let alert = UIAlertController(title: "Unknown Error", message: "Please, try again later", preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "OK", style: .default, handler: {
-      [weak self] action in
-      alert.dismiss(animated: true, completion: nil)
-      self?.navigationController?.popViewController(animated: true)
-    }))
-    self.present(alert, animated: true, completion: nil)
   }
 }

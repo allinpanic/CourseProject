@@ -27,10 +27,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     DataProviders.shared.usersDataProvider.currentUser(queue: DispatchQueue.global(qos: .userInteractive)){
       user in
       if let currentUser = user {
-      DispatchQueue.main.async {
-        profileViewController.user = currentUser
-        profileViewController.reloadInputViews()
-      }
+        DispatchQueue.main.async {
+          profileViewController.user = currentUser
+        }
       } else {
         DispatchQueue.main.async {
           let alert = UIAlertController(title: "Unknown error", message: "Please, try again later", preferredStyle: .alert)

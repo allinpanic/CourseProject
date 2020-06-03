@@ -10,6 +10,7 @@ import UIKit
 import DataProvider
 
 final class AddDescriptionViewController: UIViewController {
+// MARK: - Properties
   
   private var filteredImageView: UIImageView = {
     let imageView = UIImageView()
@@ -30,6 +31,7 @@ final class AddDescriptionViewController: UIViewController {
     textField.borderStyle = .roundedRect
     return textField
   }()
+  // MARK: - Inits
   
   init(filteredImage: UIImage?) {
     self.filteredImageView.image = filteredImage
@@ -39,6 +41,7 @@ final class AddDescriptionViewController: UIViewController {
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
+  // MARK: - ViewDidLoad
   
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -49,6 +52,7 @@ final class AddDescriptionViewController: UIViewController {
     handleKeyboard()
   }
 }
+// MARK: - Extensions
 
 extension AddDescriptionViewController {
   private func setupLayout() {
@@ -82,12 +86,14 @@ extension AddDescriptionViewController {
     
     DataProviders.shared.postsDataProvider.newPost(with: postImage,
                                                    description: text,
-                                                   queue: DispatchQueue.global(qos: .userInteractive) ) {
-                                                    [weak self] post in
-                                                    DispatchQueue.main.async {
-                                                      
-                                                    }
-    }
+                                                   queue: DispatchQueue.global(qos: .userInteractive),
+                                                   handler:
+      { [weak self] post in
+        DispatchQueue.main.async {
+          self?.tabBarController?.selectedIndex = 0
+          self?.navigationController?.popToRootViewController(animated: true)
+        }
+    })
   }
 }
 

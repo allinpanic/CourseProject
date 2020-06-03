@@ -9,7 +9,9 @@
 import UIKit
 import DataProvider
 
-final class FeedViewController: UIViewController {  
+final class FeedViewController: UIViewController {
+//MARK: - Properties
+  
   private lazy var feedTableView: UITableView = {
     let tableView = UITableView()
     tableView.backgroundColor = .white
@@ -32,8 +34,9 @@ final class FeedViewController: UIViewController {
     return view
   }()
   
-  let reuseIdentifier = "postCell"
-  var posts: [Post] = []
+  private let reuseIdentifier = "postCell"
+  private var posts: [Post] = []
+ //MARK: - ViewDidLoad
   
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -42,14 +45,37 @@ final class FeedViewController: UIViewController {
     setupLayout()
     
     showIndicator()
-    
-    DataProviders.shared.postsDataProvider.feed(queue: DispatchQueue.global(qos: .userInitiated)) {[weak self] postsArray in
+    DataProviders.shared.postsDataProvider.feed(queue: DispatchQueue.global(qos: .userInitiated))
+    { [weak self] postsArray in
       if let postsArray = postsArray {
         self?.posts = postsArray
+        
+        DispatchQueue.main.async {
+          self?.feedTableView.reloadData()
+          self?.hideIndicator()
+        }
+      } else {
+        self?.showAlert()
       }
-      DispatchQueue.main.async {
-        self?.feedTableView.reloadData()
-        self?.hideIndicator()
+    }
+  }
+//MARK: - ViewDidAppear
+  
+  override func viewWillAppear(_ animated: Bool) {
+    super.viewWillAppear(animated)
+
+    showIndicator()
+    DataProviders.shared.postsDataProvider.feed(queue: DispatchQueue.global(qos: .userInitiated))
+    { [weak self] postsArray in
+      if let postsArray = postsArray {
+        self?.posts = postsArray
+        
+        DispatchQueue.main.async {
+          self?.feedTableView.reloadData()
+          self?.hideIndicator()
+        }
+      } else {
+        self?.showAlert()
       }
     }
   }
@@ -74,16 +100,27 @@ extension FeedViewController: UITableViewDataSource {
   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     guard let cell = feedTableView.dequeueReusableCell(withIdentifier: reuseIdentifier, for: indexPath) as? FeedPostCell
       else { return UITableViewCell() }
+    
     cell.post = posts[indexPath.row]  
     cell.configureCell()
     cell.delegate = self
+    
     return cell
   }
 }
 //MARK: - PostCell Delegate methods
 
 extension FeedViewController: FeedPostCellDelegate {
-  func showAlert(_ alert: UIAlertController) {
+  func showAlert() {
+    let alert = UIAlertController(title: "Unknokn error!",
+                                  message: "Please, try again later",
+                                  preferredStyle: .alert)
+    let alertAction = UIAlertAction(title: "OK",
+                                    style: .default,
+                                    handler: { action in
+                                      alert.dismiss(animated: true, completion: nil)
+    })
+    alert.addAction(alertAction)
     present(alert, animated: true, completion: nil)
   }
   
@@ -115,6 +152,7 @@ extension FeedViewController {
     imageView.layer.opacity = 0
   }
 }
+// MARK: - Activity Indicator
 
 extension FeedViewController {
   func showIndicator() {

@@ -21,9 +21,7 @@ final class FilteredThumbnailCell: UICollectionViewCell {
     }
   }
   
-  var filterParameters: [String: Any]?
-  
-   private var imageFiltered: UIImageView = {
+  private var imageFiltered: UIImageView = {
     let imageView = UIImageView()
     imageView.contentMode = .scaleAspectFill
     return imageView
@@ -50,7 +48,7 @@ final class FilteredThumbnailCell: UICollectionViewCell {
 }
 
 extension FilteredThumbnailCell {
-  func setupLayout() {
+  private func setupLayout() {
     contentView.addSubview(imageFiltered)
     contentView.addSubview(filterNameLabel)
     

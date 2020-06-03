@@ -36,7 +36,7 @@ final class UserTableViewCell: UITableViewCell {
 }
 
 extension UserTableViewCell {
-  func setupLayout() {
+  private func setupLayout() {
     contentView.addSubview(userAvatarImageView)
     contentView.addSubview(userNameLabel)
     

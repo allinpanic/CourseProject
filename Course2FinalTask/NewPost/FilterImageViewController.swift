@@ -10,10 +10,11 @@ import UIKit
 import DataProvider
 
 final class FilterImageViewController: UIViewController {
+// MARK: - Properties
+  
   private var selectedImage: UIImage
   private var index: Int
-  private let context = CIContext()
-  private var filterParametersArray: [[String: Any]] = []
+  private var filters = Filters()
   
   private let reuseIdentifier = "filterThumbnail"
   private let filterNames: [String] = []
@@ -50,6 +51,7 @@ final class FilterImageViewController: UIViewController {
     view.alpha = 0.7
     return view
   }()
+// MARK: - Inits
   
   init(image: UIImage, index: Int) {
     self.selectedImage = image
@@ -61,6 +63,7 @@ final class FilterImageViewController: UIViewController {
   required init?(coder: NSCoder) {
     fatalError("init(coder:) has not been implemented")
   }
+// MARK: - ViewDidLoad
   
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -75,14 +78,14 @@ final class FilterImageViewController: UIViewController {
 
 extension FilterImageViewController: UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
   func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-    return Filters.filterNamesArray.count
+    return filters.filterNamesArray.count
   }
   
   func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
     guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: reuseIdentifier, for: indexPath) as? FilteredThumbnailCell else {return UICollectionViewCell()}
-
+    
     cell.image = thumbnails?[indexPath.row]
-    cell.filterName = Filters.filterNamesArray[indexPath.row]
+    cell.filterName = filters.filterNamesArray[indexPath.row]
     
     return cell
   }
@@ -94,15 +97,15 @@ extension FilterImageViewController: UICollectionViewDataSource, UICollectionVie
   func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
     let imageToFilter = self.selectedImage
     guard let ciImage = CIImage(image: imageToFilter) else {return}
-    showIndicator()
     
+    showIndicator()
     DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+      guard let filterName = self?.filters.filterNamesArray[indexPath.row] else {return}
       
-      let parameters = self?.getParameters(filter: Filters.filterNamesArray[indexPath.row],
-                                           image: imageToFilter)
-      let filteredImage = self?.applyFilter(name: Filters.filterNamesArray[indexPath.row],
-                                            parameters: parameters ?? [kCIInputImageKey: ciImage])
-      
+      let parameters = self?.filters.getParameters(filter: filterName,
+                                                   image: imageToFilter)
+      let filteredImage = self?.filters.applyFilter(name: filterName,
+                                                    parameters: parameters ?? [kCIInputImageKey: ciImage])
       DispatchQueue.main.async {
         self?.hideIndicator()
         self?.imageViewToFilter.image = filteredImage
@@ -118,7 +121,10 @@ extension FilterImageViewController {
     view.addSubview(imageViewToFilter)
     view.addSubview(filtersPreviewCollectionView)
     
-    self.navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Next", style: .plain, target: self, action: #selector(showAddDescriptionToPost))
+    self.navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Next",
+                                                             style: .plain,
+                                                             target: self,
+                                                             action: #selector(showAddDescriptionToPost))
     
     imageViewToFilter.snp.makeConstraints{
       $0.top.leading.trailing.equalTo(view.safeAreaLayoutGuide)
@@ -140,11 +146,12 @@ extension FilterImageViewController {
 // MARK: - Filter images
 
 extension FilterImageViewController {
+  
   private func getThumbnails() {
     thumbnails = []
     let allImagesArray = DataProviders.shared.photoProvider.thumbnailPhotos()
     let thumbnail = allImagesArray[index]
-    let count = Filters.filterNamesArray.count
+    let count = filters.filterNamesArray.count
     
     for _ in 0...count - 1 {
       thumbnails?.append(thumbnail)
@@ -155,14 +162,14 @@ extension FilterImageViewController {
     let globalQueue = DispatchQueue.global(qos: .background)
     var parameters: [String: Any] = [:]
     
-    for (index, filter) in Filters.filterNamesArray.enumerated() {
-      guard let thumbnails = self.thumbnails else {continue}
+    for (index, filter) in filters.filterNamesArray.enumerated() {
+      guard let thumbnails = thumbnails else {continue}
       
       globalQueue.async { [weak self] in
         guard let self = self else {return}
-        parameters = self.getParameters(filter: filter, image: thumbnails[index])
+        parameters = self.filters.getParameters(filter: filter, image: thumbnails[index])
         
-        guard let image = self.applyFilter(name: filter, parameters: parameters) else {return}
+        guard let image = self.filters.applyFilter(name: filter, parameters: parameters) else {return}
         self.thumbnails?[index] = image
         
         DispatchQueue.main.async {
@@ -171,40 +178,8 @@ extension FilterImageViewController {
       }
     }
   }
-  
-  private func applyFilter(name: String, parameters: [String: Any]) -> UIImage? {
-    
-    guard let filter = CIFilter(name: name, parameters: parameters),
-      let outputImage = filter.outputImage,
-      let cgiimage = context.createCGImage(outputImage, from: outputImage.extent) else {return nil}
-    
-    return UIImage(cgImage: cgiimage)
-  }
-  
-  private func getParameters(filter: String, image: UIImage) -> [String: Any] {
-    var parameters: [String: Any] = [:]
-    guard let ciimage = CIImage(image: image) else {return parameters}
-    
-    switch filter {
-    case "CIGaussianBlur":
-      parameters = [kCIInputImageKey: ciimage, kCIInputRadiusKey: 3.0]
-    case "CIMotionBlur":
-      parameters = [kCIInputImageKey: ciimage, kCIInputRadiusKey: 2.0]
-    case "CICrystallize":
-      parameters = [kCIInputImageKey: ciimage, kCIInputRadiusKey: 2.0]
-    case "CIBloom":
-      parameters = [kCIInputImageKey: ciimage, kCIInputIntensityKey: 1.0]
-    case "CIColorMonochrome":
-      parameters = [kCIInputImageKey: ciimage, kCIInputColorKey: CIColor.white, kCIInputIntensityKey: 0.6]
-    case "CIVignetteEffect":
-      parameters = [kCIInputImageKey: ciimage, kCIInputIntensityKey: 0.2, kCIInputRadiusKey: 0.5]
-    default:
-      parameters = [kCIInputImageKey: ciimage]
-    }
-    
-    return parameters
-  }
 }
+//MARK: - Indicator
 
 extension FilterImageViewController {
   private func showIndicator() {
